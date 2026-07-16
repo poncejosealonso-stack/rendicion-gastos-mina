@@ -124,6 +124,18 @@ function llenarSelect(id, opciones) {
     opciones.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
 }
 
+// ---- OCR: lee la foto y sugiere fecha/monto (no reemplaza revisión humana) ----
+async function intentarOCR(foto_base64) {
+  const resp = await fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ accion: 'ocr', foto_base64 }),
+  });
+  const data = await resp.json();
+  if (!data.ok) throw new Error(data.error || 'OCR falló');
+  return data.sugerencias || {};
+}
+
 // ---- Envío ----
 async function intentarEnviar(payload) {
   const resp = await fetch(APPS_SCRIPT_URL, {
@@ -168,6 +180,24 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('gasto-fecha').valueAsDate = new Date();
   document.getElementById('viaje-fecha-salida').valueAsDate = new Date();
 
+  document.getElementById('gasto-foto').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    const ocrEstado = document.getElementById('ocr-status');
+    if (!file) return;
+    ocrEstado.textContent = '🔍 Leyendo el comprobante...';
+    try {
+      const foto_base64 = await comprimirFoto(file);
+      const sugerencias = await intentarOCR(foto_base64);
+      if (sugerencias.fecha_gasto) document.getElementById('gasto-fecha').value = sugerencias.fecha_gasto;
+      if (sugerencias.monto) document.getElementById('gasto-monto').value = sugerencias.monto;
+      ocrEstado.textContent = (sugerencias.fecha_gasto || sugerencias.monto)
+        ? '✅ Fecha/monto detectados automáticamente — verifica que estén correctos antes de agregar.'
+        : 'No se pudo leer el comprobante automáticamente, completa los campos a mano.';
+    } catch (err) {
+      ocrEstado.textContent = 'Sin señal para leer automático — completa fecha y monto a mano.';
+    }
+  });
+
   document.getElementById('btn-agregar-gasto').addEventListener('click', async () => {
     const fecha_gasto = document.getElementById('gasto-fecha').value;
     const concepto = document.getElementById('gasto-concepto').value.trim();
@@ -180,6 +210,9 @@ document.addEventListener('DOMContentLoaded', () => {
       alert('Completa todos los campos del gasto, incluida la foto.');
       return;
     }
+
+    const confirmado = confirm(`¿Estás seguro de añadir el gasto en "${concepto}" con un monto de S/ ${Number(monto).toFixed(2)}?`);
+    if (!confirmado) return;
 
     const foto_base64 = await comprimirFoto(fotoInput.files[0]);
     gastos.push({ fecha_gasto, concepto, categoria, monto, tipo_documento, foto_base64 });
@@ -206,7 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
       fecha_retorno: document.getElementById('viaje-fecha-retorno').value,
       participantes: document.getElementById('viaje-participantes').value.trim(),
       num_participantes: document.getElementById('viaje-num-participantes').value,
-      bolsa_persona: document.getElementById('viaje-bolsa').value,
+      bolsa_total: document.getElementById('viaje-bolsa').value,
       gastos,
       enviado_en: new Date().toISOString(),
     };

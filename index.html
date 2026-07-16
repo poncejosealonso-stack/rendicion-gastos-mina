@@ -79,7 +79,7 @@
           <input type="number" id="viaje-num-participantes" min="1">
         </div>
         <div>
-          <label for="viaje-bolsa">Bolsa entregada por persona (S/)</label>
+          <label for="viaje-bolsa">Bolsa entregada (S/)</label>
           <input type="number" id="viaje-bolsa" step="0.01" min="0">
         </div>
       </div>
@@ -87,6 +87,11 @@
 
     <section>
       <h2>2. Agregar gasto</h2>
+      <label for="gasto-foto">Evidencia (foto del comprobante o Yape)</label>
+      <input type="file" id="gasto-foto" accept="image/*">
+      <p class="hint">Puedes tomar una foto nueva o elegir una de la galería. Al agregar la foto, se intenta leer fecha y monto solos.</p>
+      <p id="ocr-status" class="hint"></p>
+
       <label for="gasto-fecha">Fecha del gasto</label>
       <input type="date" id="gasto-fecha">
 
@@ -96,15 +101,11 @@
       <label for="gasto-categoria">Categoría</label>
       <select id="gasto-categoria"></select>
 
-      <label for="gasto-monto">Monto (S/)</label>
+      <label for="gasto-monto">Monto (S/) — verifica el valor detectado</label>
       <input type="number" id="gasto-monto" step="0.01" min="0">
 
       <label for="gasto-tipo-doc">Tipo de documento (para ERP)</label>
       <select id="gasto-tipo-doc"></select>
-
-      <label for="gasto-foto">Evidencia (foto del comprobante o Yape)</label>
-      <input type="file" id="gasto-foto" accept="image/*" capture="environment">
-      <p class="hint">Toca para abrir la cámara directamente.</p>
 
       <button type="button" id="btn-agregar-gasto">+ Agregar este gasto a la lista</button>
     </section>
