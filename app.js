@@ -21,14 +21,50 @@ let gastos = [];
 // ---- IndexedDB ----
 const DB_NAME = 'gastosMinaDB';
 const STORE = 'pendientes';
+const STORE_BORRADOR = 'borrador';
 function openDB() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
+    const req = indexedDB.open(DB_NAME, 2);
     req.onupgradeneeded = () => {
-      req.result.createObjectStore(STORE, { keyPath: 'id', autoIncrement: true });
+      const db = req.result;
+      if (!db.objectStoreNames.contains(STORE)) {
+        db.createObjectStore(STORE, { keyPath: 'id', autoIncrement: true });
+      }
+      if (!db.objectStoreNames.contains(STORE_BORRADOR)) {
+        db.createObjectStore(STORE_BORRADOR, { keyPath: 'id' });
+      }
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
+  });
+}
+
+// ---- Borrador: guarda el progreso mientras se llena, para no perderlo si se cierra la app ----
+async function guardarBorrador(datos) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_BORRADOR, 'readwrite');
+    tx.objectStore(STORE_BORRADOR).put({ id: 'actual', datos, guardado: new Date().toISOString() });
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function cargarBorrador() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_BORRADOR, 'readonly');
+    const req = tx.objectStore(STORE_BORRADOR).get('actual');
+    req.onsuccess = () => resolve(req.result ? req.result.datos : null);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function borrarBorrador() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_BORRADOR, 'readwrite');
+    tx.objectStore(STORE_BORRADOR).delete('actual');
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
   });
 }
 async function guardarPendiente(payload) {
@@ -103,6 +139,7 @@ function renderGastos() {
       gastos.splice(Number(btn.dataset.i), 1);
       renderGastos();
       actualizarTotales();
+      autoguardarBorrador();
     });
   });
   document.getElementById('btn-enviar').disabled = gastos.length === 0;
@@ -116,6 +153,43 @@ function labelCategoria(v) {
 function actualizarTotales() {
   const total = gastos.reduce((s, g) => s + Number(g.monto || 0), 0);
   document.getElementById('total-gastado').textContent = total.toFixed(2);
+}
+
+function recopilarViaje() {
+  return {
+    jefe_grupo: document.getElementById('viaje-jefe').value,
+    orden_trabajo: document.getElementById('viaje-orden').value,
+    obra_proyecto: document.getElementById('viaje-obra').value,
+    destino: document.getElementById('viaje-destino').value,
+    centro_costo: document.getElementById('viaje-centro-costo').value,
+    fecha_salida: document.getElementById('viaje-fecha-salida').value,
+    fecha_retorno: document.getElementById('viaje-fecha-retorno').value,
+    participantes: document.getElementById('viaje-participantes').value,
+    num_participantes: document.getElementById('viaje-num-participantes').value,
+    bolsa_total: document.getElementById('viaje-bolsa').value,
+  };
+}
+
+function restaurarViaje(viaje) {
+  if (!viaje) return;
+  document.getElementById('viaje-jefe').value = viaje.jefe_grupo || '';
+  document.getElementById('viaje-orden').value = viaje.orden_trabajo || '';
+  document.getElementById('viaje-obra').value = viaje.obra_proyecto || '';
+  document.getElementById('viaje-destino').value = viaje.destino || '';
+  document.getElementById('viaje-centro-costo').value = viaje.centro_costo || '';
+  if (viaje.fecha_salida) document.getElementById('viaje-fecha-salida').value = viaje.fecha_salida;
+  if (viaje.fecha_retorno) document.getElementById('viaje-fecha-retorno').value = viaje.fecha_retorno;
+  document.getElementById('viaje-participantes').value = viaje.participantes || '';
+  document.getElementById('viaje-num-participantes').value = viaje.num_participantes || '';
+  document.getElementById('viaje-bolsa').value = viaje.bolsa_total || '';
+}
+
+let guardarBorradorTimeout = null;
+function autoguardarBorrador() {
+  clearTimeout(guardarBorradorTimeout);
+  guardarBorradorTimeout = setTimeout(() => {
+    guardarBorrador({ viaje: recopilarViaje(), gastos });
+  }, 500);
 }
 
 function llenarSelect(id, opciones) {
@@ -174,11 +248,23 @@ async function registrarSync() {
 }
 
 // ---- Inicialización ----
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   llenarSelect('gasto-categoria', CATEGORIAS);
   llenarSelect('gasto-tipo-doc', TIPOS_DOC);
   document.getElementById('gasto-fecha').valueAsDate = new Date();
   document.getElementById('viaje-fecha-salida').valueAsDate = new Date();
+
+  try {
+    const borrador = await cargarBorrador();
+    if (borrador && (borrador.gastos?.length || borrador.viaje?.jefe_grupo)) {
+      restaurarViaje(borrador.viaje);
+      gastos = borrador.gastos || [];
+      renderGastos();
+      actualizarTotales();
+      document.getElementById('estado-sync').textContent =
+        '📝 Se recuperó un borrador guardado — continúa donde quedaste o revisa antes de enviar.';
+    }
+  } catch (err) { /* sin borrador previo, se sigue normal */ }
 
   let archivoFotoSeleccionado = null;
 
@@ -230,6 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
     gastos.push({ fecha_gasto, concepto, categoria, monto, tipo_documento, foto_base64 });
     renderGastos();
     actualizarTotales();
+    autoguardarBorrador();
 
     // limpiar mini-formulario
     document.getElementById('gasto-concepto').value = '';
@@ -242,6 +329,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('ocr-status').textContent = '';
     archivoFotoSeleccionado = null;
   });
+
+  document.getElementById('form-viaje').addEventListener('input', autoguardarBorrador);
 
   document.getElementById('form-viaje').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -273,6 +362,7 @@ document.addEventListener('DOMContentLoaded', () => {
       renderGastos();
       actualizarTotales();
       document.getElementById('form-viaje').reset();
+      await borrarBorrador();
     } catch (err) {
       await guardarPendiente(payload);
       await registrarSync();
@@ -281,6 +371,7 @@ document.addEventListener('DOMContentLoaded', () => {
       renderGastos();
       actualizarTotales();
       document.getElementById('form-viaje').reset();
+      await borrarBorrador();
     }
   });
 
