@@ -3,16 +3,19 @@
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxxZJCZDGtZfvDvu8Bnd_COc7zJsYHJLo7hbX7vN3gOZLsbRqtZOH6uHgn5iCVUYJQHgA/exec';
 
 const CATEGORIAS = [
-  ['hidratacion_comida', 'Hidratación / comida extra'],
-  ['salud', 'Salud (altura, malestar)'],
+  ['movilidad', 'Movilidad'],
+  ['hidratacion', 'Hidratación'],
+  ['comidas_extras', 'Comidas extras'],
+  ['salud', 'Salud (mal de altura, malestar general)'],
+  ['primeros_auxilios', 'Primeros auxilios'],
   ['consumo_operativo', 'Consumos operativos puntuales'],
-  ['higiene', 'Higiene personal'],
-  ['otro', 'Otro (no cubierto)'],
+  ['otro', 'Otros'],
 ];
 const TIPOS_DOC = [
   ['bv', 'Boleta de Venta (BV)'],
   ['ft', 'Factura (FT)'],
   ['mv', 'Movilidad sin comprobante (MV)'],
+  ['yape_plin', 'Yape / Plin (captura de pago)'],
   ['dj', 'Declaración jurada (sin documento tributario)'],
 ];
 
