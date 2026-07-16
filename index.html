@@ -29,6 +29,8 @@
   .gasto-card-header { display: flex; justify-content: space-between; align-items: center; }
   .gasto-card-body { font-size: .85rem; color: #555; margin-top: 4px; }
   .btn-quitar { background: none; color: #c62828; font-size: 1.1rem; padding: 2px 8px; }
+  .btn-foto { padding: 12px 8px; background: #e3f2fd; color: #1565c0; font-size: .85rem; }
+  .btn-foto.activo { background: #1565c0; color: #fff; }
   #totales { font-size: .9rem; color: #333; margin-top: 8px; }
   #estado-sync { font-size: .85rem; margin-top: 10px; padding: 10px; border-radius: 8px; background: #fff8e1; color: #7a5c00; min-height: 1em; }
   .hint { font-size: .75rem; color: #888; margin-top: 4px; }
@@ -87,9 +89,15 @@
 
     <section>
       <h2>2. Agregar gasto</h2>
-      <label for="gasto-foto">Evidencia (foto del comprobante o Yape)</label>
-      <input type="file" id="gasto-foto" accept="image/*">
-      <p class="hint">Puedes tomar una foto nueva o elegir una de la galería. Al agregar la foto, se intenta leer fecha y monto solos.</p>
+      <label>Evidencia (foto del comprobante o Yape)</label>
+      <div class="row2">
+        <button type="button" id="btn-tomar-foto" class="btn-foto">📷 Tomar foto</button>
+        <button type="button" id="btn-elegir-foto" class="btn-foto">🖼️ Elegir de galería</button>
+      </div>
+      <input type="file" id="gasto-foto-camara" accept="image/*" capture="environment" style="display:none">
+      <input type="file" id="gasto-foto-galeria" accept="image/*" style="display:none">
+      <p id="foto-nombre" class="hint"></p>
+      <p class="hint">Al agregar la foto, se intenta leer fecha y monto solos.</p>
       <p id="ocr-status" class="hint"></p>
 
       <label for="gasto-fecha">Fecha del gasto</label>

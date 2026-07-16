@@ -180,10 +180,20 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('gasto-fecha').valueAsDate = new Date();
   document.getElementById('viaje-fecha-salida').valueAsDate = new Date();
 
-  document.getElementById('gasto-foto').addEventListener('change', async (e) => {
-    const file = e.target.files[0];
+  let archivoFotoSeleccionado = null;
+
+  document.getElementById('btn-tomar-foto').addEventListener('click', () => {
+    document.getElementById('gasto-foto-camara').click();
+  });
+  document.getElementById('btn-elegir-foto').addEventListener('click', () => {
+    document.getElementById('gasto-foto-galeria').click();
+  });
+
+  async function manejarFotoSeleccionada(file, origen) {
     const ocrEstado = document.getElementById('ocr-status');
     if (!file) return;
+    archivoFotoSeleccionado = file;
+    document.getElementById('foto-nombre').textContent = `📎 Foto lista (${origen}): ${file.name || 'sin nombre'}`;
     ocrEstado.textContent = '🔍 Leyendo el comprobante...';
     try {
       const foto_base64 = await comprimirFoto(file);
@@ -196,7 +206,10 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       ocrEstado.textContent = 'Sin señal para leer automático — completa fecha y monto a mano.';
     }
-  });
+  }
+
+  document.getElementById('gasto-foto-camara').addEventListener('change', (e) => manejarFotoSeleccionada(e.target.files[0], 'cámara'));
+  document.getElementById('gasto-foto-galeria').addEventListener('change', (e) => manejarFotoSeleccionada(e.target.files[0], 'galería'));
 
   document.getElementById('btn-agregar-gasto').addEventListener('click', async () => {
     const fecha_gasto = document.getElementById('gasto-fecha').value;
@@ -204,9 +217,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const categoria = document.getElementById('gasto-categoria').value;
     const monto = document.getElementById('gasto-monto').value;
     const tipo_documento = document.getElementById('gasto-tipo-doc').value;
-    const fotoInput = document.getElementById('gasto-foto');
 
-    if (!fecha_gasto || !concepto || !categoria || !monto || !tipo_documento || !fotoInput.files[0]) {
+    if (!fecha_gasto || !concepto || !categoria || !monto || !tipo_documento || !archivoFotoSeleccionado) {
       alert('Completa todos los campos del gasto, incluida la foto.');
       return;
     }
@@ -214,7 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const confirmado = confirm(`¿Estás seguro de añadir el gasto en "${concepto}" con un monto de S/ ${Number(monto).toFixed(2)}?`);
     if (!confirmado) return;
 
-    const foto_base64 = await comprimirFoto(fotoInput.files[0]);
+    const foto_base64 = await comprimirFoto(archivoFotoSeleccionado);
     gastos.push({ fecha_gasto, concepto, categoria, monto, tipo_documento, foto_base64 });
     renderGastos();
     actualizarTotales();
@@ -224,7 +236,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('gasto-categoria').value = '';
     document.getElementById('gasto-monto').value = '';
     document.getElementById('gasto-tipo-doc').value = '';
-    fotoInput.value = '';
+    document.getElementById('gasto-foto-camara').value = '';
+    document.getElementById('gasto-foto-galeria').value = '';
+    document.getElementById('foto-nombre').textContent = '';
+    document.getElementById('ocr-status').textContent = '';
+    archivoFotoSeleccionado = null;
   });
 
   document.getElementById('form-viaje').addEventListener('submit', async (e) => {
