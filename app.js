@@ -1,6 +1,6 @@
 // ==== CONFIGURACIÓN ====
 // Reemplazar con la URL del Web App de Apps Script (Implementar > Nueva implementación > Aplicación web)
-const APPS_SCRIPT_URL = 'REPLACE_WITH_APPS_SCRIPT_URL';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxxZJCZDGtZfvDvu8Bnd_COc7zJsYHJLo7hbX7vN3gOZLsbRqtZOH6uHgn5iCVUYJQHgA/exec';
 
 const CATEGORIAS = [
   ['hidratacion_comida', 'Hidratación / comida extra'],
