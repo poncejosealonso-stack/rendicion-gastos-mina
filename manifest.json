@@ -1,0 +1,12 @@
+{
+  "name": "Rendición de Gastos en Mina",
+  "short_name": "Gastos Mina",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1565c0",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

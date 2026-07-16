@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Rendición de Gastos en Mina</title>
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icon.svg">
+<meta name="theme-color" content="#1565c0">
+<style>
+  :root { font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #f2f4f7; color: #1a1a1a; padding-bottom: 40px; }
+  header { background: #1565c0; color: #fff; padding: 18px 16px; }
+  header h1 { margin: 0; font-size: 1.15rem; }
+  header p { margin: 4px 0 0; font-size: .8rem; opacity: .9; }
+  main { padding: 16px; max-width: 560px; margin: 0 auto; }
+  section { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  section h2 { font-size: .95rem; margin: 0 0 12px; color: #1565c0; text-transform: uppercase; letter-spacing: .03em; }
+  label { display: block; font-size: .85rem; font-weight: 600; margin: 10px 0 4px; }
+  input, select { width: 100%; padding: 10px; border: 1px solid #d0d5dd; border-radius: 8px; font-size: 1rem; background: #fff; }
+  input:focus, select:focus { outline: 2px solid #1565c0; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  button { cursor: pointer; border: none; border-radius: 8px; font-weight: 600; }
+  #btn-agregar-gasto { width: 100%; margin-top: 14px; padding: 12px; background: #e3f2fd; color: #1565c0; font-size: .95rem; }
+  #btn-enviar { width: 100%; padding: 14px; background: #1565c0; color: #fff; font-size: 1.05rem; margin-top: 8px; }
+  #btn-enviar:disabled { background: #b0bec5; }
+  .gasto-card { border: 1px solid #e0e0e0; border-radius: 8px; padding: 10px 12px; margin-top: 8px; }
+  .gasto-card-header { display: flex; justify-content: space-between; align-items: center; }
+  .gasto-card-body { font-size: .85rem; color: #555; margin-top: 4px; }
+  .btn-quitar { background: none; color: #c62828; font-size: 1.1rem; padding: 2px 8px; }
+  #totales { font-size: .9rem; color: #333; margin-top: 8px; }
+  #estado-sync { font-size: .85rem; margin-top: 10px; padding: 10px; border-radius: 8px; background: #fff8e1; color: #7a5c00; min-height: 1em; }
+  .hint { font-size: .75rem; color: #888; margin-top: 4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Rendición de Gastos en Mina</h1>
+  <p>Llena los datos del viaje una vez, agrega los gastos que hagan falta y envía al final. Funciona sin señal.</p>
+</header>
+
+<main>
+  <form id="form-viaje">
+    <section>
+      <h2>1. Datos del viaje</h2>
+      <label for="viaje-jefe">Jefe de grupo (responsable) *</label>
+      <input id="viaje-jefe" required>
+
+      <label for="viaje-orden">Orden de trabajo</label>
+      <input id="viaje-orden">
+
+      <label for="viaje-obra">Obra / Planta / Proyecto</label>
+      <input id="viaje-obra">
+
+      <label for="viaje-destino">Ciudad / Destino *</label>
+      <input id="viaje-destino" required>
+
+      <label for="viaje-centro-costo">Centro de costo (ERP) — confirmar con tesorería</label>
+      <input id="viaje-centro-costo">
+
+      <div class="row2">
+        <div>
+          <label for="viaje-fecha-salida">Fecha de salida *</label>
+          <input type="date" id="viaje-fecha-salida" required>
+        </div>
+        <div>
+          <label for="viaje-fecha-retorno">Fecha de retorno prevista</label>
+          <input type="date" id="viaje-fecha-retorno">
+        </div>
+      </div>
+
+      <label for="viaje-participantes">Participantes (nombres completos, separados por coma) *</label>
+      <input id="viaje-participantes" required>
+
+      <div class="row2">
+        <div>
+          <label for="viaje-num-participantes">N° de participantes</label>
+          <input type="number" id="viaje-num-participantes" min="1">
+        </div>
+        <div>
+          <label for="viaje-bolsa">Bolsa entregada por persona (S/)</label>
+          <input type="number" id="viaje-bolsa" step="0.01" min="0">
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>2. Agregar gasto</h2>
+      <label for="gasto-fecha">Fecha del gasto</label>
+      <input type="date" id="gasto-fecha">
+
+      <label for="gasto-concepto">Concepto (qué se compró)</label>
+      <input id="gasto-concepto">
+
+      <label for="gasto-categoria">Categoría</label>
+      <select id="gasto-categoria"></select>
+
+      <label for="gasto-monto">Monto (S/)</label>
+      <input type="number" id="gasto-monto" step="0.01" min="0">
+
+      <label for="gasto-tipo-doc">Tipo de documento (para ERP)</label>
+      <select id="gasto-tipo-doc"></select>
+
+      <label for="gasto-foto">Evidencia (foto del comprobante o Yape)</label>
+      <input type="file" id="gasto-foto" accept="image/*" capture="environment">
+      <p class="hint">Toca para abrir la cámara directamente.</p>
+
+      <button type="button" id="btn-agregar-gasto">+ Agregar este gasto a la lista</button>
+    </section>
+
+    <section>
+      <h2>3. Gastos agregados</h2>
+      <div id="lista-gastos"></div>
+      <div id="totales">Total gastado: S/ <span id="total-gastado">0.00</span></div>
+    </section>
+
+    <button id="btn-enviar" type="submit" disabled>Enviar rendición</button>
+    <div id="estado-sync"></div>
+  </form>
+</main>
+
+<script src="./app.js"></script>
+</body>
+</html>
