@@ -98,6 +98,18 @@ async function borrarPendiente(id) {
   });
 }
 
+// ---- GPS: ubicación al momento de tomar/elegir la foto (no bloquea si se niega el permiso) ----
+function obtenerGPS() {
+  return new Promise((resolve) => {
+    if (!('geolocation' in navigator)) return resolve(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ lat: pos.coords.latitude.toFixed(6), lng: pos.coords.longitude.toFixed(6) }),
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+    );
+  });
+}
+
 // ---- Compresión de fotos (evita mandar 5-8 MB por foto) ----
 function comprimirFoto(file, maxAncho = 1280, calidad = 0.7) {
   return new Promise((resolve, reject) => {
@@ -270,6 +282,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   } catch (err) { /* sin borrador previo, se sigue normal */ }
 
   let archivoFotoSeleccionado = null;
+  let gpsSeleccionado = null;
+  let momentoCapturaSeleccionado = null;
 
   document.getElementById('btn-tomar-foto').addEventListener('click', () => {
     document.getElementById('gasto-foto-camara').click();
@@ -282,6 +296,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const ocrEstado = document.getElementById('ocr-status');
     if (!file) return;
     archivoFotoSeleccionado = file;
+    momentoCapturaSeleccionado = new Date().toISOString();
+    gpsSeleccionado = null;
+    obtenerGPS().then((gps) => { gpsSeleccionado = gps; });
     document.getElementById('foto-nombre').textContent = `📎 Foto lista (${origen}): ${file.name || 'sin nombre'}`;
     ocrEstado.textContent = '🔍 Leyendo el comprobante...';
     try {
@@ -316,7 +333,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!confirmado) return;
 
     const foto_base64 = await comprimirFoto(archivoFotoSeleccionado);
-    gastos.push({ fecha_gasto, concepto, categoria, monto, tipo_documento, foto_base64 });
+    gastos.push({
+      fecha_gasto, concepto, categoria, monto, tipo_documento, foto_base64,
+      gps_lat: gpsSeleccionado ? gpsSeleccionado.lat : '',
+      gps_lng: gpsSeleccionado ? gpsSeleccionado.lng : '',
+      momento_captura: momentoCapturaSeleccionado || '',
+    });
     renderGastos();
     actualizarTotales();
     autoguardarBorrador();
@@ -331,6 +353,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('foto-nombre').textContent = '';
     document.getElementById('ocr-status').textContent = '';
     archivoFotoSeleccionado = null;
+    gpsSeleccionado = null;
+    momentoCapturaSeleccionado = null;
   });
 
   document.getElementById('form-viaje').addEventListener('input', autoguardarBorrador);

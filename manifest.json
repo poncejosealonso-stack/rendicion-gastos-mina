@@ -1,6 +1,7 @@
 {
-  "name": "Rendición de Gastos en Mina",
-  "short_name": "Gastos Mina",
+  "name": "FYSEM RindeGastos",
+  "short_name": "RindeGastos",
+  "description": "Rinde gastos de forma rápida y sencilla. Completa la información de tu viaje una sola vez, registra los gastos cuando ocurran y envía tu rendición al finalizar. Funciona incluso sin conexión a internet.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
