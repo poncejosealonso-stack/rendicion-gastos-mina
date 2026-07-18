@@ -8,44 +8,163 @@
 <link rel="icon" href="./icon.svg">
 <meta name="theme-color" content="#1565c0">
 <style>
-  :root { font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+  :root {
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    --azul: #1565c0;
+    --azul-osc: #0d47a1;
+    --azul-claro: #e3f2fd;
+    --acento: #00897b;
+    --acento-claro: #e0f2f1;
+    --verde: #2e7d32;
+    --verde-claro: #e8f5e9;
+    --ambar: #b26a00;
+    --ambar-claro: #fff3e0;
+    --rojo: #c62828;
+    --gris-borde: #dde2e8;
+    --sombra: 0 2px 10px rgba(15, 40, 80, .07);
+    --sombra-fuerte: 0 8px 28px rgba(15, 40, 80, .18);
+  }
   * { box-sizing: border-box; }
-  body { margin: 0; background: #f2f4f7; color: #1a1a1a; padding-bottom: 40px; }
-  header { background: #1565c0; color: #fff; padding: 18px 16px; }
-  header h1 { margin: 0; font-size: 1.15rem; }
-  header p { margin: 4px 0 0; font-size: .8rem; opacity: .9; }
+  body { margin: 0; background: #eef1f6; color: #16202c; padding-bottom: 48px; -webkit-tap-highlight-color: transparent; }
+
+  header { background: linear-gradient(135deg, var(--azul) 0%, var(--azul-osc) 100%); color: #fff; padding: 20px 16px 16px; position: relative; overflow: hidden; }
+  header::after { content: ""; position: absolute; right: -30px; top: -40px; width: 140px; height: 140px; border-radius: 50%; background: rgba(255,255,255,.08); }
+  header h1 { margin: 0; font-size: 1.2rem; letter-spacing: -.01em; }
+  header p { margin: 6px 0 0; font-size: .8rem; opacity: .92; line-height: 1.4; max-width: 480px; }
+
+  /* ---- Indicador de progreso ---- */
+  #progreso { display: flex; gap: 6px; max-width: 560px; margin: 0 auto; padding: 14px 16px 0; }
+  .paso { flex: 1; text-align: center; }
+  .paso-barra { height: 4px; border-radius: 4px; background: rgba(255,255,255,.28); overflow: hidden; }
+  .paso-barra::after { content: ""; display: block; height: 100%; width: 0%; background: #fff; border-radius: 4px; transition: width .45s cubic-bezier(.4,0,.2,1); }
+  .paso.completo .paso-barra::after { width: 100%; }
+  .paso.activo .paso-barra::after { width: 55%; }
+  .paso-label { font-size: .65rem; color: rgba(255,255,255,.75); margin-top: 5px; text-transform: uppercase; letter-spacing: .04em; transition: color .3s; }
+  .paso.completo .paso-label, .paso.activo .paso-label { color: #fff; font-weight: 600; }
+
   main { padding: 16px; max-width: 560px; margin: 0 auto; }
-  section { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
-  section h2 { font-size: .95rem; margin: 0 0 12px; color: #1565c0; text-transform: uppercase; letter-spacing: .03em; }
-  label { display: block; font-size: .85rem; font-weight: 600; margin: 10px 0 4px; }
-  input, select { width: 100%; padding: 10px; border: 1px solid #d0d5dd; border-radius: 8px; font-size: 1rem; background: #fff; }
-  input:focus, select:focus { outline: 2px solid #1565c0; }
+
+  section { background: #fff; border-radius: 16px; padding: 18px; margin-bottom: 16px; box-shadow: var(--sombra); border: 1px solid rgba(15,40,80,.04); transition: box-shadow .25s; }
+  section h2 { font-size: .82rem; margin: 0 0 14px; color: var(--azul); text-transform: uppercase; letter-spacing: .06em; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  section h2 .num { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: var(--azul-claro); color: var(--azul); font-size: .72rem; font-weight: 800; }
+
+  label { display: block; font-size: .82rem; font-weight: 600; margin: 12px 0 5px; color: #33404d; }
+  input, select {
+    width: 100%; padding: 11px 12px; border: 1.5px solid var(--gris-borde); border-radius: 10px;
+    font-size: .96rem; background: #fbfcfe; color: #16202c; transition: border-color .18s, box-shadow .18s, background .18s;
+  }
+  input:focus, select:focus { outline: none; border-color: var(--azul); box-shadow: 0 0 0 3px rgba(21,101,192,.12); background: #fff; }
   .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  button { cursor: pointer; border: none; border-radius: 8px; font-weight: 600; }
-  #btn-agregar-gasto { width: 100%; margin-top: 14px; padding: 12px; background: #e3f2fd; color: #1565c0; font-size: .95rem; }
-  #btn-enviar { width: 100%; padding: 14px; background: #1565c0; color: #fff; font-size: 1.05rem; margin-top: 8px; }
-  #btn-enviar:disabled { background: #b0bec5; }
-  .gasto-card { border: 1px solid #e0e0e0; border-radius: 8px; padding: 10px 12px; margin-top: 8px; }
-  .gasto-card-header { display: flex; justify-content: space-between; align-items: center; }
-  .gasto-card-body { font-size: .85rem; color: #555; margin-top: 4px; }
-  .btn-quitar { background: none; color: #c62828; font-size: 1.1rem; padding: 2px 8px; }
-  .btn-foto { padding: 12px 8px; background: #e3f2fd; color: #1565c0; font-size: .85rem; }
-  .btn-foto.activo { background: #1565c0; color: #fff; }
-  #totales { font-size: .9rem; color: #333; margin-top: 8px; }
-  #estado-sync { font-size: .85rem; margin-top: 10px; padding: 10px; border-radius: 8px; background: #fff8e1; color: #7a5c00; min-height: 1em; }
-  .hint { font-size: .75rem; color: #888; margin-top: 4px; }
+
+  button { cursor: pointer; border: none; border-radius: 10px; font-weight: 600; font-family: inherit; transition: transform .12s ease, box-shadow .18s ease, background .18s ease, opacity .18s ease; }
+  button:active { transform: scale(.96); }
+
+  .btn-foto { padding: 13px 8px; background: var(--azul-claro); color: var(--azul); font-size: .84rem; display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .btn-foto:hover { background: #d3e8fb; }
+  .btn-foto.recien-elegida { background: var(--verde-claro); color: var(--verde); animation: destello .5s ease; }
+
+  #btn-agregar-gasto {
+    width: 100%; margin-top: 16px; padding: 13px; background: var(--acento-claro); color: var(--acento);
+    font-size: .95rem; box-shadow: none;
+  }
+  #btn-agregar-gasto:hover { background: #ccece7; }
+
+  #btn-enviar {
+    width: 100%; padding: 15px; background: linear-gradient(135deg, var(--azul) 0%, var(--azul-osc) 100%);
+    color: #fff; font-size: 1.05rem; margin-top: 10px; box-shadow: 0 6px 16px rgba(21,101,192,.32);
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+  }
+  #btn-enviar:disabled { background: #c3cad3; box-shadow: none; cursor: not-allowed; }
+  #btn-enviar:not(:disabled):hover { box-shadow: 0 8px 22px rgba(21,101,192,.42); }
+  #btn-enviar.cargando { opacity: .85; pointer-events: none; }
+
+  .spinner {
+    width: 16px; height: 16px; border: 2.5px solid rgba(255,255,255,.4); border-top-color: #fff;
+    border-radius: 50%; animation: girar .7s linear infinite; display: none;
+  }
+  #btn-enviar.cargando .spinner { display: inline-block; }
+
+  @keyframes girar { to { transform: rotate(360deg); } }
+  @keyframes destello { 0% { transform: scale(1); } 40% { transform: scale(1.04); } 100% { transform: scale(1); } }
+  @keyframes entrarTarjeta { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  @keyframes pulso { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+
+  .gasto-card {
+    border: 1px solid var(--gris-borde); border-radius: 12px; padding: 12px 14px; margin-top: 10px;
+    animation: entrarTarjeta .32s cubic-bezier(.2,.8,.3,1) both; background: #fbfcfe; transition: box-shadow .2s, border-color .2s;
+  }
+  .gasto-card:hover { box-shadow: 0 3px 10px rgba(15,40,80,.08); border-color: #c9d4e0; }
+  .gasto-card-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .gasto-card-header strong { font-size: .92rem; }
+  .gasto-card-body { font-size: .82rem; color: #5b6b7a; margin-top: 4px; }
+  .gasto-card-body .monto { color: var(--azul); font-weight: 700; }
+  .btn-quitar {
+    background: none; color: var(--rojo); font-size: 1rem; padding: 4px 9px; border-radius: 8px;
+    line-height: 1; flex-shrink: 0;
+  }
+  .btn-quitar:hover { background: #fdecea; }
+
+  #totales {
+    font-size: .95rem; color: #33404d; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--gris-borde);
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  #total-gastado { font-size: 1.25rem; font-weight: 800; color: var(--azul); }
+
+  #estado-sync {
+    font-size: .84rem; margin-top: 12px; padding: 12px 14px; border-radius: 12px; min-height: 1em;
+    transition: background .25s, color .25s; display: none;
+  }
+  #estado-sync:not(:empty) { display: block; }
+  #estado-sync.info { background: var(--azul-claro); color: var(--azul-osc); }
+  #estado-sync.exito { background: var(--verde-claro); color: var(--verde); }
+  #estado-sync.alerta { background: var(--ambar-claro); color: var(--ambar); }
+
+  #ocr-status { font-size: .8rem; margin-top: 6px; min-height: 1.1em; transition: color .25s; font-weight: 600; }
+  #ocr-status.leyendo { color: var(--azul); animation: pulso 1.1s ease-in-out infinite; }
+  #ocr-status.exito { color: var(--verde); }
+  #ocr-status.info { color: #8a6d00; }
+  #ocr-status.error { color: var(--rojo); }
+
+  .hint { font-size: .74rem; color: #8a97a3; margin-top: 4px; line-height: 1.35; }
+
+  /* ---- Modal de confirmación propio ---- */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(10,20,35,.5); display: flex; align-items: flex-end;
+    justify-content: center; z-index: 50; opacity: 0; pointer-events: none; transition: opacity .2s ease;
+  }
+  .modal-overlay.abierto { opacity: 1; pointer-events: auto; }
+  .modal-box {
+    background: #fff; border-radius: 20px 20px 0 0; padding: 22px 20px calc(20px + env(safe-area-inset-bottom));
+    width: 100%; max-width: 560px; box-shadow: var(--sombra-fuerte); transform: translateY(100%); transition: transform .28s cubic-bezier(.2,.8,.3,1);
+  }
+  .modal-overlay.abierto .modal-box { transform: translateY(0); }
+  .modal-box::before { content: ""; display: block; width: 40px; height: 4px; background: #dde2e8; border-radius: 4px; margin: 0 auto 16px; }
+  .modal-titulo { font-size: 1rem; font-weight: 700; margin: 0 0 6px; color: #16202c; }
+  .modal-mensaje { font-size: .9rem; color: #4a5a68; margin: 0 0 20px; line-height: 1.45; }
+  .modal-botones { display: flex; gap: 10px; }
+  .modal-btn { flex: 1; padding: 13px; font-size: .95rem; border-radius: 12px; }
+  .modal-btn-cancelar { background: #f0f2f5; color: #4a5a68; }
+  .modal-btn-cancelar:hover { background: #e4e8ed; }
+  .modal-btn-confirmar { background: linear-gradient(135deg, var(--azul) 0%, var(--azul-osc) 100%); color: #fff; box-shadow: 0 5px 14px rgba(21,101,192,.32); }
+
+  @media (max-width: 380px) { .row2 { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
 <header>
   <h1>FYSEM RindeGastos</h1>
   <p>Rinde gastos de forma rápida y sencilla. Completa la información de tu viaje una sola vez, registra los gastos cuando ocurran y envía tu rendición al finalizar. Funciona incluso sin conexión a internet.</p>
+  <div id="progreso">
+    <div class="paso" id="paso-viaje"><div class="paso-barra"></div><div class="paso-label">Viaje</div></div>
+    <div class="paso" id="paso-gastos"><div class="paso-barra"></div><div class="paso-label">Gastos</div></div>
+    <div class="paso" id="paso-enviar"><div class="paso-barra"></div><div class="paso-label">Enviar</div></div>
+  </div>
 </header>
 
 <main>
   <form id="form-viaje">
     <section>
-      <h2>1. Datos del viaje</h2>
+      <h2><span class="num">1</span> Datos del viaje</h2>
       <label for="viaje-jefe">Jefe de grupo (responsable) *</label>
       <input id="viaje-jefe" required>
 
@@ -88,7 +207,7 @@
     </section>
 
     <section>
-      <h2>2. Agregar gasto</h2>
+      <h2><span class="num">2</span> Agregar gasto</h2>
       <label>Evidencia (foto del comprobante o Yape)</label>
       <div class="row2">
         <button type="button" id="btn-tomar-foto" class="btn-foto">📷 Tomar foto</button>
@@ -98,7 +217,7 @@
       <input type="file" id="gasto-foto-galeria" accept="image/*" style="display:none">
       <p id="foto-nombre" class="hint"></p>
       <p class="hint">Al agregar la foto, se intenta leer fecha y monto solos.</p>
-      <p id="ocr-status" class="hint"></p>
+      <p id="ocr-status"></p>
 
       <label for="gasto-fecha">Fecha del gasto</label>
       <input type="date" id="gasto-fecha">
@@ -119,15 +238,29 @@
     </section>
 
     <section>
-      <h2>3. Gastos agregados</h2>
+      <h2><span class="num">3</span> Gastos agregados</h2>
       <div id="lista-gastos"></div>
-      <div id="totales">Total gastado: S/ <span id="total-gastado">0.00</span></div>
+      <div id="totales">Total gastado <span id="total-gastado">S/ 0.00</span></div>
     </section>
 
-    <button id="btn-enviar" type="submit" disabled>Enviar rendición</button>
+    <button id="btn-enviar" type="submit" disabled>
+      <span class="spinner"></span>
+      <span>Enviar rendición</span>
+    </button>
     <div id="estado-sync"></div>
   </form>
 </main>
+
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal-box">
+    <p class="modal-titulo">Confirmar gasto</p>
+    <p class="modal-mensaje" id="modal-mensaje"></p>
+    <div class="modal-botones">
+      <button type="button" class="modal-btn modal-btn-cancelar" id="modal-cancelar">Cancelar</button>
+      <button type="button" class="modal-btn modal-btn-confirmar" id="modal-confirmar">Sí, agregar</button>
+    </div>
+  </div>
+</div>
 
 <script src="./app.js"></script>
 </body>

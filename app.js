@@ -144,7 +144,7 @@ function renderGastos() {
         <button type="button" data-i="${i}" class="btn-quitar">✕</button>
       </div>
       <div class="gasto-card-body">
-        ${g.fecha_gasto} · S/ ${g.monto} · ${labelCategoria(g.categoria)}
+        ${g.fecha_gasto} · <span class="monto">S/ ${g.monto}</span> · ${labelCategoria(g.categoria)}
       </div>
     `;
     cont.appendChild(div);
@@ -155,9 +155,11 @@ function renderGastos() {
       renderGastos();
       actualizarTotales();
       autoguardarBorrador();
+      actualizarProgreso();
     });
   });
   document.getElementById('btn-enviar').disabled = gastos.length === 0;
+  actualizarProgreso();
 }
 
 function labelCategoria(v) {
@@ -167,7 +169,67 @@ function labelCategoria(v) {
 
 function actualizarTotales() {
   const total = gastos.reduce((s, g) => s + Number(g.monto || 0), 0);
-  document.getElementById('total-gastado').textContent = total.toFixed(2);
+  document.getElementById('total-gastado').textContent = 'S/ ' + total.toFixed(2);
+}
+
+// ---- UI: helpers de feedback visual ----
+function setEstadoSync(texto, tipo) {
+  const el = document.getElementById('estado-sync');
+  el.textContent = texto;
+  el.classList.remove('info', 'exito', 'alerta');
+  if (tipo) el.classList.add(tipo);
+}
+
+function setOcrStatus(texto, tipo) {
+  const el = document.getElementById('ocr-status');
+  el.textContent = texto;
+  el.classList.remove('leyendo', 'exito', 'info', 'error');
+  if (tipo) el.classList.add(tipo);
+}
+
+function mostrarConfirmacion(mensaje) {
+  return new Promise((resolve) => {
+    const overlay = document.getElementById('modal-overlay');
+    document.getElementById('modal-mensaje').textContent = mensaje;
+    overlay.classList.add('abierto');
+
+    function limpiar(resultado) {
+      overlay.classList.remove('abierto');
+      btnConfirmar.removeEventListener('click', onConfirmar);
+      btnCancelar.removeEventListener('click', onCancelar);
+      overlay.removeEventListener('click', onOverlay);
+      resolve(resultado);
+    }
+    const btnConfirmar = document.getElementById('modal-confirmar');
+    const btnCancelar = document.getElementById('modal-cancelar');
+    function onConfirmar() { limpiar(true); }
+    function onCancelar() { limpiar(false); }
+    function onOverlay(e) { if (e.target === overlay) limpiar(false); }
+    btnConfirmar.addEventListener('click', onConfirmar);
+    btnCancelar.addEventListener('click', onCancelar);
+    overlay.addEventListener('click', onOverlay);
+  });
+}
+
+function actualizarProgreso() {
+  const viajeCompleto = !!(
+    document.getElementById('viaje-jefe').value.trim() &&
+    document.getElementById('viaje-destino').value.trim() &&
+    document.getElementById('viaje-fecha-salida').value
+  );
+  const pasoViaje = document.getElementById('paso-viaje');
+  const pasoGastos = document.getElementById('paso-gastos');
+  const pasoEnviar = document.getElementById('paso-enviar');
+
+  pasoViaje.classList.toggle('completo', viajeCompleto);
+  pasoViaje.classList.toggle('activo', !viajeCompleto);
+
+  pasoGastos.classList.toggle('completo', viajeCompleto && gastos.length > 0);
+  pasoGastos.classList.toggle('activo', viajeCompleto && gastos.length === 0);
+
+  const listoParaEnviar = viajeCompleto && gastos.length > 0;
+  pasoEnviar.classList.toggle('activo', listoParaEnviar);
+  pasoEnviar.classList.toggle('completo', false);
 }
 
 function recopilarViaje() {
@@ -240,16 +302,15 @@ async function intentarEnviar(payload) {
 
 async function sincronizarPendientes() {
   const pendientes = await listarPendientes();
-  const estado = document.getElementById('estado-sync');
   if (!pendientes.length) return;
-  estado.textContent = `Enviando ${pendientes.length} rendición(es) pendiente(s)...`;
+  setEstadoSync(`Enviando ${pendientes.length} rendición(es) pendiente(s)...`, 'info');
   for (const p of pendientes) {
     try {
       await intentarEnviar(p.payload);
       await borrarPendiente(p.id);
-      estado.textContent = 'Rendiciones pendientes enviadas correctamente.';
+      setEstadoSync('Rendiciones pendientes enviadas correctamente.', 'exito');
     } catch (err) {
-      estado.textContent = `Sin señal aún — quedan ${pendientes.length} rendición(es) guardadas en el celular, se enviarán solas.`;
+      setEstadoSync(`Sin señal aún — quedan ${pendientes.length} rendición(es) guardadas en el celular, se enviarán solas.`, 'alerta');
       return; // deja de intentar, se reintentará después
     }
   }
@@ -276,10 +337,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       gastos = borrador.gastos || [];
       renderGastos();
       actualizarTotales();
-      document.getElementById('estado-sync').textContent =
-        '📝 Se recuperó un borrador guardado — continúa donde quedaste o revisa antes de enviar.';
+      setEstadoSync('📝 Se recuperó un borrador guardado — continúa donde quedaste o revisa antes de enviar.', 'info');
     }
   } catch (err) { /* sin borrador previo, se sigue normal */ }
+
+  actualizarProgreso();
 
   let archivoFotoSeleccionado = null;
   let gpsSeleccionado = null;
@@ -292,30 +354,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('gasto-foto-galeria').click();
   });
 
-  async function manejarFotoSeleccionada(file, origen) {
-    const ocrEstado = document.getElementById('ocr-status');
+  async function manejarFotoSeleccionada(file, origen, btnOrigen) {
     if (!file) return;
     archivoFotoSeleccionado = file;
     momentoCapturaSeleccionado = new Date().toISOString();
     gpsSeleccionado = null;
     obtenerGPS().then((gps) => { gpsSeleccionado = gps; });
+
+    document.querySelectorAll('.btn-foto').forEach((b) => b.classList.remove('recien-elegida'));
+    if (btnOrigen) btnOrigen.classList.add('recien-elegida');
+
     document.getElementById('foto-nombre').textContent = `📎 Foto lista (${origen}): ${file.name || 'sin nombre'}`;
-    ocrEstado.textContent = '🔍 Leyendo el comprobante...';
+    setOcrStatus('🔍 Leyendo el comprobante...', 'leyendo');
     try {
       const foto_base64 = await comprimirFoto(file);
       const sugerencias = await intentarOCR(foto_base64);
       if (sugerencias.fecha_gasto) document.getElementById('gasto-fecha').value = sugerencias.fecha_gasto;
       if (sugerencias.monto) document.getElementById('gasto-monto').value = sugerencias.monto;
-      ocrEstado.textContent = (sugerencias.fecha_gasto || sugerencias.monto)
-        ? '✅ Fecha/monto detectados automáticamente — verifica que estén correctos antes de agregar.'
-        : 'No se pudo leer el comprobante automáticamente, completa los campos a mano.';
+      if (sugerencias.fecha_gasto || sugerencias.monto) {
+        setOcrStatus('✅ Fecha/monto detectados automáticamente — verifica que estén correctos antes de agregar.', 'exito');
+      } else {
+        setOcrStatus('No se pudo leer el comprobante automáticamente, completa los campos a mano.', 'info');
+      }
     } catch (err) {
-      ocrEstado.textContent = 'Sin señal para leer automático — completa fecha y monto a mano.';
+      setOcrStatus('Sin señal para leer automático — completa fecha y monto a mano.', 'error');
     }
   }
 
-  document.getElementById('gasto-foto-camara').addEventListener('change', (e) => manejarFotoSeleccionada(e.target.files[0], 'cámara'));
-  document.getElementById('gasto-foto-galeria').addEventListener('change', (e) => manejarFotoSeleccionada(e.target.files[0], 'galería'));
+  document.getElementById('gasto-foto-camara').addEventListener('change', (e) =>
+    manejarFotoSeleccionada(e.target.files[0], 'cámara', document.getElementById('btn-tomar-foto')));
+  document.getElementById('gasto-foto-galeria').addEventListener('change', (e) =>
+    manejarFotoSeleccionada(e.target.files[0], 'galería', document.getElementById('btn-elegir-foto')));
 
   document.getElementById('btn-agregar-gasto').addEventListener('click', async () => {
     const fecha_gasto = document.getElementById('gasto-fecha').value;
@@ -329,7 +398,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    const confirmado = confirm(`¿Estás seguro de añadir el gasto en "${concepto}" con un monto de S/ ${Number(monto).toFixed(2)}?`);
+    const confirmado = await mostrarConfirmacion(`¿Añadir el gasto en "${concepto}" con un monto de S/ ${Number(monto).toFixed(2)}?`);
     if (!confirmado) return;
 
     const foto_base64 = await comprimirFoto(archivoFotoSeleccionado);
@@ -342,6 +411,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderGastos();
     actualizarTotales();
     autoguardarBorrador();
+    actualizarProgreso();
 
     // limpiar mini-formulario
     document.getElementById('gasto-concepto').value = '';
@@ -351,13 +421,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('gasto-foto-camara').value = '';
     document.getElementById('gasto-foto-galeria').value = '';
     document.getElementById('foto-nombre').textContent = '';
-    document.getElementById('ocr-status').textContent = '';
+    setOcrStatus('', null);
+    document.querySelectorAll('.btn-foto').forEach((b) => b.classList.remove('recien-elegida'));
     archivoFotoSeleccionado = null;
     gpsSeleccionado = null;
     momentoCapturaSeleccionado = null;
   });
 
-  document.getElementById('form-viaje').addEventListener('input', autoguardarBorrador);
+  document.getElementById('form-viaje').addEventListener('input', () => {
+    autoguardarBorrador();
+    actualizarProgreso();
+  });
 
   document.getElementById('form-viaje').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -381,10 +455,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    const estado = document.getElementById('estado-sync');
+    const btnEnviar = document.getElementById('btn-enviar');
+    btnEnviar.classList.add('cargando');
     try {
       await intentarEnviar(payload);
-      estado.textContent = '✅ Rendición enviada correctamente.';
+      setEstadoSync('✅ Rendición enviada correctamente.', 'exito');
       gastos = [];
       renderGastos();
       actualizarTotales();
@@ -393,12 +468,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (err) {
       await guardarPendiente(payload);
       await registrarSync();
-      estado.textContent = '📴 Sin señal — la rendición quedó guardada en el celular y se enviará sola apenas haya conexión. No cierres la app de forma forzada.';
+      setEstadoSync('📴 Sin señal — la rendición quedó guardada en el celular y se enviará sola apenas haya conexión. No cierres la app de forma forzada.', 'alerta');
       gastos = [];
       renderGastos();
       actualizarTotales();
       document.getElementById('form-viaje').reset();
       await borrarBorrador();
+    } finally {
+      btnEnviar.classList.remove('cargando');
+      actualizarProgreso();
     }
   });
 
