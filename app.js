@@ -1,5 +1,4 @@
 // ==== CONFIGURACIÓN ====
-// Reemplazar con la URL del Web App de Apps Script (Implementar > Nueva implementación > Aplicación web)
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxxZJCZDGtZfvDvu8Bnd_COc7zJsYHJLo7hbX7vN3gOZLsbRqtZOH6uHgn5iCVUYJQHgA/exec';
 
 const CATEGORIAS = [
@@ -20,6 +19,7 @@ const TIPOS_DOC = [
 ];
 
 let gastos = [];
+let pasoActual = 1;
 
 // ---- IndexedDB ----
 const DB_NAME = 'gastosMinaDB';
@@ -42,7 +42,6 @@ function openDB() {
   });
 }
 
-// ---- Borrador: guarda el progreso mientras se llena, para no perderlo si se cierra la app ----
 async function guardarBorrador(datos) {
   const db = await openDB();
   return new Promise((resolve, reject) => {
@@ -98,7 +97,7 @@ async function borrarPendiente(id) {
   });
 }
 
-// ---- GPS: ubicación al momento de tomar/elegir la foto (no bloquea si se niega el permiso) ----
+// ---- GPS ----
 function obtenerGPS() {
   return new Promise((resolve) => {
     if (!('geolocation' in navigator)) return resolve(null);
@@ -110,7 +109,7 @@ function obtenerGPS() {
   });
 }
 
-// ---- Compresión de fotos (evita mandar 5-8 MB por foto) ----
+// ---- Compresión de fotos ----
 function comprimirFoto(file, maxAncho = 1280, calidad = 0.7) {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -131,10 +130,62 @@ function comprimirFoto(file, maxAncho = 1280, calidad = 0.7) {
   });
 }
 
-// ---- UI: render lista de gastos agregados ----
+// ---- Navegación entre pasos ----
+const SUBTITULOS = {
+  1: 'Paso 1 de 3 · Datos del viaje',
+  2: 'Paso 2 de 3 · Gastos',
+  gasto: 'Paso 2 de 3 · Nuevo gasto',
+  3: 'Paso 3 de 3 · Confirmar y enviar',
+};
+
+function viajeCompleto() {
+  return !!(
+    document.getElementById('viaje-jefe').value.trim() &&
+    document.getElementById('viaje-destino').value.trim() &&
+    document.getElementById('viaje-fecha-salida').value &&
+    document.getElementById('viaje-participantes').value.trim()
+  );
+}
+
+function irAPaso(paso) {
+  pasoActual = paso;
+  document.querySelectorAll('.pantalla').forEach((p) => p.classList.remove('visible'));
+  const idPantalla = paso === 'gasto' ? 'pantalla-gasto' : 'pantalla-' + paso;
+  document.getElementById(idPantalla).classList.add('visible');
+
+  let subtitulo = SUBTITULOS[paso] || '';
+  if (paso === 2 && gastos.length) subtitulo = `Paso 2 de 3 · Gastos (${gastos.length} registrado${gastos.length === 1 ? '' : 's'})`;
+  document.getElementById('subtitulo-paso').textContent = subtitulo;
+
+  const pasoNum = paso === 'gasto' ? 2 : paso;
+  [1, 2, 3].forEach((n) => {
+    const el = document.getElementById('paso-' + n);
+    el.classList.remove('activo', 'completo');
+    if (n < pasoNum) el.classList.add('completo');
+    else if (n === pasoNum) el.classList.add('activo');
+  });
+  if (viajeCompleto()) document.getElementById('paso-1').classList.add('completo');
+  if (gastos.length > 0) document.getElementById('paso-2').classList.add('completo');
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ---- UI: lista de gastos (paso 2) ----
+function labelCategoria(v) {
+  const found = CATEGORIAS.find((c) => c[0] === v);
+  return found ? found[1] : v;
+}
+function labelTipoDoc(v) {
+  const found = TIPOS_DOC.find((c) => c[0] === v);
+  return found ? found[1] : v;
+}
+
 function renderGastos() {
   const cont = document.getElementById('lista-gastos');
   cont.innerHTML = '';
+  if (!gastos.length) {
+    cont.innerHTML = '<div class="lista-vacia">Aún no hay gastos registrados.<br>Toca "＋ Agregar gasto" para empezar.</div>';
+  }
   gastos.forEach((g, i) => {
     const div = document.createElement('div');
     div.className = 'gasto-card';
@@ -144,7 +195,7 @@ function renderGastos() {
         <button type="button" data-i="${i}" class="btn-quitar">✕</button>
       </div>
       <div class="gasto-card-body">
-        ${g.fecha_gasto} · <span class="monto">S/ ${g.monto}</span> · ${labelCategoria(g.categoria)}
+        ${g.fecha_gasto} · <span class="monto">S/ ${Number(g.monto).toFixed(2)}</span> · ${labelCategoria(g.categoria)}
       </div>
     `;
     cont.appendChild(div);
@@ -153,85 +204,42 @@ function renderGastos() {
     btn.addEventListener('click', () => {
       gastos.splice(Number(btn.dataset.i), 1);
       renderGastos();
-      actualizarTotales();
       autoguardarBorrador();
-      actualizarProgreso();
+      irAPaso(2);
     });
   });
-  document.getElementById('btn-enviar').disabled = gastos.length === 0;
-  actualizarProgreso();
+  document.getElementById('btn-ir-paso-3').disabled = gastos.length === 0;
 }
 
-function labelCategoria(v) {
-  const found = CATEGORIAS.find((c) => c[0] === v);
-  return found ? found[1] : v;
+// ---- UI: resumen (paso 3) ----
+function renderResumen() {
+  const v = recopilarViaje();
+  const fechas = [v.fecha_salida, v.fecha_retorno].filter(Boolean).join(' – ');
+  document.getElementById('resumen-viaje').innerHTML = `
+    <div class="resumen-fila"><span class="etiqueta">Jefe de grupo</span><span class="valor">${v.jefe_grupo || '—'}</span></div>
+    <div class="resumen-fila"><span class="etiqueta">Destino</span><span class="valor">${v.destino || '—'}</span></div>
+    <div class="resumen-fila"><span class="etiqueta">Fechas</span><span class="valor">${fechas || '—'}</span></div>
+    <div class="resumen-fila"><span class="etiqueta">Participantes</span><span class="valor">${v.num_participantes || '—'}</span></div>
+  `;
+  const bolsa = Number(v.bolsa_total || 0);
+  const gastado = gastos.reduce((s, g) => s + Number(g.monto || 0), 0);
+  const saldo = bolsa - gastado;
+  document.getElementById('resumen-bolsa').textContent = 'S/ ' + bolsa.toFixed(2);
+  document.getElementById('resumen-num-gastos').textContent = gastos.length;
+  document.getElementById('resumen-gastado').textContent = 'S/ ' + gastado.toFixed(2);
+  const saldoEl = document.getElementById('resumen-saldo');
+  saldoEl.textContent = 'S/ ' + saldo.toFixed(2);
+  saldoEl.classList.toggle('saldo-positivo', saldo >= 0);
+  saldoEl.classList.toggle('saldo-negativo', saldo < 0);
+  document.querySelector('#pantalla-3 .resumen-total .etiqueta').textContent =
+    saldo >= 0 ? 'Saldo a devolver' : 'Reembolso al trabajador';
+
+  document.getElementById('resumen-gastos').innerHTML = gastos.map((g) => `
+    <div class="resumen-fila"><span class="etiqueta">${g.concepto} · ${labelTipoDoc(g.tipo_documento)}</span><span class="valor">S/ ${Number(g.monto).toFixed(2)}</span></div>
+  `).join('') || '<div class="lista-vacia">Sin gastos.</div>';
 }
 
-function actualizarTotales() {
-  const total = gastos.reduce((s, g) => s + Number(g.monto || 0), 0);
-  document.getElementById('total-gastado').textContent = 'S/ ' + total.toFixed(2);
-}
-
-// ---- UI: helpers de feedback visual ----
-function setEstadoSync(texto, tipo) {
-  const el = document.getElementById('estado-sync');
-  el.textContent = texto;
-  el.classList.remove('info', 'exito', 'alerta');
-  if (tipo) el.classList.add(tipo);
-}
-
-function setOcrStatus(texto, tipo) {
-  const el = document.getElementById('ocr-status');
-  el.textContent = texto;
-  el.classList.remove('leyendo', 'exito', 'info', 'error');
-  if (tipo) el.classList.add(tipo);
-}
-
-function mostrarConfirmacion(mensaje) {
-  return new Promise((resolve) => {
-    const overlay = document.getElementById('modal-overlay');
-    document.getElementById('modal-mensaje').textContent = mensaje;
-    overlay.classList.add('abierto');
-
-    function limpiar(resultado) {
-      overlay.classList.remove('abierto');
-      btnConfirmar.removeEventListener('click', onConfirmar);
-      btnCancelar.removeEventListener('click', onCancelar);
-      overlay.removeEventListener('click', onOverlay);
-      resolve(resultado);
-    }
-    const btnConfirmar = document.getElementById('modal-confirmar');
-    const btnCancelar = document.getElementById('modal-cancelar');
-    function onConfirmar() { limpiar(true); }
-    function onCancelar() { limpiar(false); }
-    function onOverlay(e) { if (e.target === overlay) limpiar(false); }
-    btnConfirmar.addEventListener('click', onConfirmar);
-    btnCancelar.addEventListener('click', onCancelar);
-    overlay.addEventListener('click', onOverlay);
-  });
-}
-
-function actualizarProgreso() {
-  const viajeCompleto = !!(
-    document.getElementById('viaje-jefe').value.trim() &&
-    document.getElementById('viaje-destino').value.trim() &&
-    document.getElementById('viaje-fecha-salida').value
-  );
-  const pasoViaje = document.getElementById('paso-viaje');
-  const pasoGastos = document.getElementById('paso-gastos');
-  const pasoEnviar = document.getElementById('paso-enviar');
-
-  pasoViaje.classList.toggle('completo', viajeCompleto);
-  pasoViaje.classList.toggle('activo', !viajeCompleto);
-
-  pasoGastos.classList.toggle('completo', viajeCompleto && gastos.length > 0);
-  pasoGastos.classList.toggle('activo', viajeCompleto && gastos.length === 0);
-
-  const listoParaEnviar = viajeCompleto && gastos.length > 0;
-  pasoEnviar.classList.toggle('activo', listoParaEnviar);
-  pasoEnviar.classList.toggle('completo', false);
-}
-
+// ---- Viaje: recopilar/restaurar ----
 function recopilarViaje() {
   return {
     jefe_grupo: document.getElementById('viaje-jefe').value,
@@ -246,7 +254,6 @@ function recopilarViaje() {
     bolsa_total: document.getElementById('viaje-bolsa').value,
   };
 }
-
 function restaurarViaje(viaje) {
   if (!viaje) return;
   document.getElementById('viaje-jefe').value = viaje.jefe_grupo || '';
@@ -275,7 +282,44 @@ function llenarSelect(id, opciones) {
     opciones.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
 }
 
-// ---- OCR: lee la foto y sugiere fecha/monto (no reemplaza revisión humana) ----
+// ---- Feedback visual ----
+function setEstadoSync(texto, tipo) {
+  const el = document.getElementById('estado-sync');
+  el.textContent = texto;
+  el.classList.remove('info', 'exito', 'alerta');
+  if (tipo) el.classList.add(tipo);
+}
+function setOcrStatus(texto, tipo) {
+  const el = document.getElementById('ocr-status');
+  el.textContent = texto;
+  el.classList.remove('leyendo', 'exito', 'info', 'error');
+  if (tipo) el.classList.add(tipo);
+}
+function mostrarConfirmacion(titulo, mensaje) {
+  return new Promise((resolve) => {
+    const overlay = document.getElementById('modal-overlay');
+    document.getElementById('modal-titulo').textContent = titulo;
+    document.getElementById('modal-mensaje').textContent = mensaje;
+    overlay.classList.add('abierto');
+    const btnConfirmar = document.getElementById('modal-confirmar');
+    const btnCancelar = document.getElementById('modal-cancelar');
+    function limpiar(resultado) {
+      overlay.classList.remove('abierto');
+      btnConfirmar.removeEventListener('click', onConfirmar);
+      btnCancelar.removeEventListener('click', onCancelar);
+      overlay.removeEventListener('click', onOverlay);
+      resolve(resultado);
+    }
+    function onConfirmar() { limpiar(true); }
+    function onCancelar() { limpiar(false); }
+    function onOverlay(e) { if (e.target === overlay) limpiar(false); }
+    btnConfirmar.addEventListener('click', onConfirmar);
+    btnCancelar.addEventListener('click', onCancelar);
+    overlay.addEventListener('click', onOverlay);
+  });
+}
+
+// ---- OCR ----
 async function intentarOCR(foto_base64) {
   const resp = await fetch(APPS_SCRIPT_URL, {
     method: 'POST',
@@ -291,7 +335,7 @@ async function intentarOCR(foto_base64) {
 async function intentarEnviar(payload) {
   const resp = await fetch(APPS_SCRIPT_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // evita preflight CORS
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify(payload),
   });
   if (!resp.ok) throw new Error('HTTP ' + resp.status);
@@ -311,7 +355,7 @@ async function sincronizarPendientes() {
       setEstadoSync('Rendiciones pendientes enviadas correctamente.', 'exito');
     } catch (err) {
       setEstadoSync(`Sin señal aún — quedan ${pendientes.length} rendición(es) guardadas en el celular, se enviarán solas.`, 'alerta');
-      return; // deja de intentar, se reintentará después
+      return;
     }
   }
 }
@@ -319,7 +363,7 @@ async function sincronizarPendientes() {
 async function registrarSync() {
   if ('serviceWorker' in navigator && 'SyncManager' in window) {
     const reg = await navigator.serviceWorker.ready;
-    try { await reg.sync.register('sync-gastos'); } catch (e) { /* no soportado, seguimos con fallback */ }
+    try { await reg.sync.register('sync-gastos'); } catch (e) { /* fallback activo */ }
   }
 }
 
@@ -330,22 +374,81 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('gasto-fecha').valueAsDate = new Date();
   document.getElementById('viaje-fecha-salida').valueAsDate = new Date();
 
+  let hayBorrador = false;
   try {
     const borrador = await cargarBorrador();
     if (borrador && (borrador.gastos?.length || borrador.viaje?.jefe_grupo)) {
       restaurarViaje(borrador.viaje);
       gastos = borrador.gastos || [];
-      renderGastos();
-      actualizarTotales();
-      setEstadoSync('📝 Se recuperó un borrador guardado — continúa donde quedaste o revisa antes de enviar.', 'info');
+      hayBorrador = true;
     }
-  } catch (err) { /* sin borrador previo, se sigue normal */ }
+  } catch (err) { /* sin borrador */ }
 
-  actualizarProgreso();
+  renderGastos();
+  irAPaso(hayBorrador && viajeCompleto() ? 2 : 1);
+  if (hayBorrador) {
+    setEstadoSync('📝 Se recuperó un borrador guardado — continúa donde quedaste.', 'info');
+  }
 
+  // -- Navegación --
+  document.getElementById('btn-ir-paso-2').addEventListener('click', () => {
+    const requeridos = ['viaje-jefe', 'viaje-destino', 'viaje-fecha-salida', 'viaje-participantes'];
+    let ok = true;
+    requeridos.forEach((id) => {
+      const el = document.getElementById(id);
+      const vacio = !el.value.trim();
+      el.classList.toggle('invalido', vacio);
+      if (vacio) ok = false;
+    });
+    if (!ok) {
+      alert('Completa los campos obligatorios (*) antes de continuar.');
+      return;
+    }
+    autoguardarBorrador();
+    irAPaso(2);
+  });
+  document.getElementById('btn-volver-paso-1').addEventListener('click', () => irAPaso(1));
+  document.getElementById('btn-ir-paso-3').addEventListener('click', () => {
+    renderResumen();
+    irAPaso(3);
+  });
+  document.getElementById('btn-volver-paso-2').addEventListener('click', () => irAPaso(2));
+
+  document.querySelectorAll('#progreso .paso').forEach((el) => {
+    el.addEventListener('click', () => {
+      const destino = Number(el.dataset.paso);
+      if (destino === 1) irAPaso(1);
+      if (destino === 2 && viajeCompleto()) irAPaso(2);
+      if (destino === 3 && viajeCompleto() && gastos.length) { renderResumen(); irAPaso(3); }
+    });
+  });
+
+  // -- Formulario de gasto --
   let archivoFotoSeleccionado = null;
   let gpsSeleccionado = null;
   let momentoCapturaSeleccionado = null;
+
+  function limpiarFormularioGasto() {
+    document.getElementById('gasto-concepto').value = '';
+    document.getElementById('gasto-categoria').value = '';
+    document.getElementById('gasto-monto').value = '';
+    document.getElementById('gasto-tipo-doc').value = '';
+    document.getElementById('gasto-foto-camara').value = '';
+    document.getElementById('gasto-foto-galeria').value = '';
+    document.getElementById('gasto-fecha').valueAsDate = new Date();
+    document.getElementById('foto-nombre').textContent = '';
+    setOcrStatus('', null);
+    document.querySelectorAll('.btn-foto').forEach((b) => b.classList.remove('recien-elegida'));
+    archivoFotoSeleccionado = null;
+    gpsSeleccionado = null;
+    momentoCapturaSeleccionado = null;
+  }
+
+  document.getElementById('btn-agregar-gasto-grande').addEventListener('click', () => {
+    limpiarFormularioGasto();
+    irAPaso('gasto');
+  });
+  document.getElementById('btn-cancelar-gasto').addEventListener('click', () => irAPaso(2));
 
   document.getElementById('btn-tomar-foto').addEventListener('click', () => {
     document.getElementById('gasto-foto-camara').click();
@@ -372,7 +475,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (sugerencias.fecha_gasto) document.getElementById('gasto-fecha').value = sugerencias.fecha_gasto;
       if (sugerencias.monto) document.getElementById('gasto-monto').value = sugerencias.monto;
       if (sugerencias.fecha_gasto || sugerencias.monto) {
-        setOcrStatus('✅ Fecha/monto detectados automáticamente — verifica que estén correctos antes de agregar.', 'exito');
+        setOcrStatus('✅ Fecha/monto detectados automáticamente — verifica que estén correctos antes de guardar.', 'exito');
       } else {
         setOcrStatus('No se pudo leer el comprobante automáticamente, completa los campos a mano.', 'info');
       }
@@ -386,7 +489,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('gasto-foto-galeria').addEventListener('change', (e) =>
     manejarFotoSeleccionada(e.target.files[0], 'galería', document.getElementById('btn-elegir-foto')));
 
-  document.getElementById('btn-agregar-gasto').addEventListener('click', async () => {
+  document.getElementById('btn-guardar-gasto').addEventListener('click', async () => {
     const fecha_gasto = document.getElementById('gasto-fecha').value;
     const concepto = document.getElementById('gasto-concepto').value.trim();
     const categoria = document.getElementById('gasto-categoria').value;
@@ -398,7 +501,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    const confirmado = await mostrarConfirmacion(`¿Añadir el gasto en "${concepto}" con un monto de S/ ${Number(monto).toFixed(2)}?`);
+    const confirmado = await mostrarConfirmacion(
+      'Confirmar gasto',
+      `¿Añadir el gasto en "${concepto}" con un monto de S/ ${Number(monto).toFixed(2)}?`
+    );
     if (!confirmado) return;
 
     const foto_base64 = await comprimirFoto(archivoFotoSeleccionado);
@@ -409,78 +515,67 @@ document.addEventListener('DOMContentLoaded', async () => {
       momento_captura: momentoCapturaSeleccionado || '',
     });
     renderGastos();
-    actualizarTotales();
     autoguardarBorrador();
-    actualizarProgreso();
-
-    // limpiar mini-formulario
-    document.getElementById('gasto-concepto').value = '';
-    document.getElementById('gasto-categoria').value = '';
-    document.getElementById('gasto-monto').value = '';
-    document.getElementById('gasto-tipo-doc').value = '';
-    document.getElementById('gasto-foto-camara').value = '';
-    document.getElementById('gasto-foto-galeria').value = '';
-    document.getElementById('foto-nombre').textContent = '';
-    setOcrStatus('', null);
-    document.querySelectorAll('.btn-foto').forEach((b) => b.classList.remove('recien-elegida'));
-    archivoFotoSeleccionado = null;
-    gpsSeleccionado = null;
-    momentoCapturaSeleccionado = null;
+    limpiarFormularioGasto();
+    irAPaso(2);
   });
 
-  document.getElementById('form-viaje').addEventListener('input', () => {
-    autoguardarBorrador();
-    actualizarProgreso();
+  document.querySelectorAll('#pantalla-1 input').forEach((el) => {
+    el.addEventListener('input', () => {
+      el.classList.remove('invalido');
+      autoguardarBorrador();
+    });
   });
 
-  document.getElementById('form-viaje').addEventListener('submit', async (e) => {
-    e.preventDefault();
+  // -- Envío final --
+  document.getElementById('btn-enviar').addEventListener('click', async () => {
+    const v = recopilarViaje();
     const payload = {
-      jefe_grupo: document.getElementById('viaje-jefe').value.trim(),
-      orden_trabajo: document.getElementById('viaje-orden').value.trim(),
-      obra_proyecto: document.getElementById('viaje-obra').value.trim(),
-      destino: document.getElementById('viaje-destino').value.trim(),
-      centro_costo: document.getElementById('viaje-centro-costo').value.trim(),
-      fecha_salida: document.getElementById('viaje-fecha-salida').value,
-      fecha_retorno: document.getElementById('viaje-fecha-retorno').value,
-      participantes: document.getElementById('viaje-participantes').value.trim(),
-      num_participantes: document.getElementById('viaje-num-participantes').value,
-      bolsa_total: document.getElementById('viaje-bolsa').value,
+      jefe_grupo: v.jefe_grupo.trim(),
+      orden_trabajo: v.orden_trabajo.trim(),
+      obra_proyecto: v.obra_proyecto.trim(),
+      destino: v.destino.trim(),
+      centro_costo: v.centro_costo.trim(),
+      fecha_salida: v.fecha_salida,
+      fecha_retorno: v.fecha_retorno,
+      participantes: v.participantes.trim(),
+      num_participantes: v.num_participantes,
+      bolsa_total: v.bolsa_total,
       gastos,
       enviado_en: new Date().toISOString(),
     };
 
     if (!payload.jefe_grupo || !payload.destino || !payload.fecha_salida || gastos.length === 0) {
-      alert('Completa los datos del viaje y agrega al menos un gasto.');
+      alert('Faltan datos del viaje o no hay gastos registrados.');
       return;
     }
+
+    const confirmado = await mostrarConfirmacion(
+      'Enviar rendición',
+      `Se enviará la rendición de ${payload.jefe_grupo} con ${gastos.length} gasto(s). ¿Continuar?`
+    );
+    if (!confirmado) return;
 
     const btnEnviar = document.getElementById('btn-enviar');
     btnEnviar.classList.add('cargando');
     try {
       await intentarEnviar(payload);
       setEstadoSync('✅ Rendición enviada correctamente.', 'exito');
-      gastos = [];
-      renderGastos();
-      actualizarTotales();
-      document.getElementById('form-viaje').reset();
-      await borrarBorrador();
     } catch (err) {
       await guardarPendiente(payload);
       await registrarSync();
       setEstadoSync('📴 Sin señal — la rendición quedó guardada en el celular y se enviará sola apenas haya conexión. No cierres la app de forma forzada.', 'alerta');
-      gastos = [];
-      renderGastos();
-      actualizarTotales();
-      document.getElementById('form-viaje').reset();
-      await borrarBorrador();
     } finally {
       btnEnviar.classList.remove('cargando');
-      actualizarProgreso();
+      gastos = [];
+      renderGastos();
+      document.querySelectorAll('#pantalla-1 input').forEach((el) => { el.value = ''; });
+      document.getElementById('viaje-fecha-salida').valueAsDate = new Date();
+      await borrarBorrador();
     }
   });
 
-  // reintentar pendientes al abrir la app y al recuperar conexión
+  // -- Sincronización de pendientes --
   sincronizarPendientes();
   window.addEventListener('online', sincronizarPendientes);
   if ('serviceWorker' in navigator) {

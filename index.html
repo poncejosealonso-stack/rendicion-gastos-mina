@@ -14,8 +14,10 @@
     --azul-osc: #0d47a1;
     --azul-claro: #e3f2fd;
     --acento: #00897b;
+    --acento-osc: #00695c;
     --acento-claro: #e0f2f1;
     --verde: #2e7d32;
+    --verde-osc: #1b5e20;
     --verde-claro: #e8f5e9;
     --ambar: #b26a00;
     --ambar-claro: #fff3e0;
@@ -27,14 +29,13 @@
   * { box-sizing: border-box; }
   body { margin: 0; background: #eef1f6; color: #16202c; padding-bottom: 48px; -webkit-tap-highlight-color: transparent; }
 
-  header { background: linear-gradient(135deg, var(--azul) 0%, var(--azul-osc) 100%); color: #fff; padding: 20px 16px 16px; position: relative; overflow: hidden; }
+  header { background: linear-gradient(135deg, var(--azul) 0%, var(--azul-osc) 100%); color: #fff; padding: 18px 16px 14px; position: relative; overflow: hidden; }
   header::after { content: ""; position: absolute; right: -30px; top: -40px; width: 140px; height: 140px; border-radius: 50%; background: rgba(255,255,255,.08); }
-  header h1 { margin: 0; font-size: 1.2rem; letter-spacing: -.01em; }
-  header p { margin: 6px 0 0; font-size: .8rem; opacity: .92; line-height: 1.4; max-width: 480px; }
+  header h1 { margin: 0; font-size: 1.15rem; letter-spacing: -.01em; }
+  #subtitulo-paso { margin: 5px 0 0; font-size: .8rem; opacity: .92; }
 
-  /* ---- Indicador de progreso ---- */
-  #progreso { display: flex; gap: 6px; max-width: 560px; margin: 0 auto; padding: 14px 16px 0; }
-  .paso { flex: 1; text-align: center; }
+  #progreso { display: flex; gap: 6px; max-width: 560px; margin: 12px auto 0; }
+  .paso { flex: 1; text-align: center; cursor: pointer; }
   .paso-barra { height: 4px; border-radius: 4px; background: rgba(255,255,255,.28); overflow: hidden; }
   .paso-barra::after { content: ""; display: block; height: 100%; width: 0%; background: #fff; border-radius: 4px; transition: width .45s cubic-bezier(.4,0,.2,1); }
   .paso.completo .paso-barra::after { width: 100%; }
@@ -44,9 +45,16 @@
 
   main { padding: 16px; max-width: 560px; margin: 0 auto; }
 
-  section { background: #fff; border-radius: 16px; padding: 18px; margin-bottom: 16px; box-shadow: var(--sombra); border: 1px solid rgba(15,40,80,.04); transition: box-shadow .25s; }
-  section h2 { font-size: .82rem; margin: 0 0 14px; color: var(--azul); text-transform: uppercase; letter-spacing: .06em; font-weight: 700; display: flex; align-items: center; gap: 8px; }
-  section h2 .num { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: var(--azul-claro); color: var(--azul); font-size: .72rem; font-weight: 800; }
+  .pantalla { display: none; animation: entrarPantalla .28s cubic-bezier(.2,.8,.3,1); }
+  .pantalla.visible { display: block; }
+  @keyframes entrarPantalla { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: translateX(0); } }
+  @keyframes entrarTarjeta { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  @keyframes girar { to { transform: rotate(360deg); } }
+  @keyframes pulso { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+  @keyframes destello { 0% { transform: scale(1); } 40% { transform: scale(1.04); } 100% { transform: scale(1); } }
+
+  section { background: #fff; border-radius: 16px; padding: 18px; margin-bottom: 16px; box-shadow: var(--sombra); border: 1px solid rgba(15,40,80,.04); }
+  section h2 { font-size: .82rem; margin: 0 0 14px; color: var(--azul); text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
 
   label { display: block; font-size: .82rem; font-weight: 600; margin: 12px 0 5px; color: #33404d; }
   input, select {
@@ -54,66 +62,67 @@
     font-size: .96rem; background: #fbfcfe; color: #16202c; transition: border-color .18s, box-shadow .18s, background .18s;
   }
   input:focus, select:focus { outline: none; border-color: var(--azul); box-shadow: 0 0 0 3px rgba(21,101,192,.12); background: #fff; }
+  input.invalido { border-color: var(--rojo); }
   .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
   button { cursor: pointer; border: none; border-radius: 10px; font-weight: 600; font-family: inherit; transition: transform .12s ease, box-shadow .18s ease, background .18s ease, opacity .18s ease; }
   button:active { transform: scale(.96); }
 
+  .nav-botones { display: flex; gap: 10px; margin-top: 4px; }
+  .btn-atras { flex: 1; padding: 14px; background: #fff; border: 1.5px solid var(--gris-borde); color: #4a5a68; font-size: .95rem; }
+  .btn-atras:hover { background: #f5f7fa; }
+  .btn-continuar {
+    flex: 2; padding: 14px; background: linear-gradient(135deg, var(--azul) 0%, var(--azul-osc) 100%);
+    color: #fff; font-size: 1rem; box-shadow: 0 6px 16px rgba(21,101,192,.32);
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-continuar:disabled { background: #c3cad3; box-shadow: none; cursor: not-allowed; }
+
+  #btn-agregar-gasto-grande {
+    width: 100%; padding: 16px; background: linear-gradient(135deg, var(--acento) 0%, var(--acento-osc) 100%);
+    color: #fff; font-size: 1.05rem; box-shadow: 0 6px 16px rgba(0,137,123,.35); margin-bottom: 16px;
+  }
+  #btn-agregar-gasto-grande:hover { box-shadow: 0 8px 22px rgba(0,137,123,.45); }
+
   .btn-foto { padding: 13px 8px; background: var(--azul-claro); color: var(--azul); font-size: .84rem; display: flex; align-items: center; justify-content: center; gap: 6px; }
   .btn-foto:hover { background: #d3e8fb; }
   .btn-foto.recien-elegida { background: var(--verde-claro); color: var(--verde); animation: destello .5s ease; }
 
-  #btn-agregar-gasto {
-    width: 100%; margin-top: 16px; padding: 13px; background: var(--acento-claro); color: var(--acento);
-    font-size: .95rem; box-shadow: none;
-  }
-  #btn-agregar-gasto:hover { background: #ccece7; }
+  #btn-guardar-gasto { width: 100%; margin-top: 16px; padding: 14px; background: var(--acento); color: #fff; font-size: .98rem; box-shadow: 0 5px 14px rgba(0,137,123,.3); }
+  #btn-cancelar-gasto { width: 100%; margin-top: 8px; padding: 12px; background: #f0f2f5; color: #4a5a68; font-size: .9rem; }
 
   #btn-enviar {
-    width: 100%; padding: 15px; background: linear-gradient(135deg, var(--azul) 0%, var(--azul-osc) 100%);
-    color: #fff; font-size: 1.05rem; margin-top: 10px; box-shadow: 0 6px 16px rgba(21,101,192,.32);
+    flex: 2; padding: 15px; background: linear-gradient(135deg, var(--verde) 0%, var(--verde-osc) 100%);
+    color: #fff; font-size: 1.05rem; box-shadow: 0 6px 16px rgba(46,125,50,.35);
     display: flex; align-items: center; justify-content: center; gap: 10px;
   }
   #btn-enviar:disabled { background: #c3cad3; box-shadow: none; cursor: not-allowed; }
-  #btn-enviar:not(:disabled):hover { box-shadow: 0 8px 22px rgba(21,101,192,.42); }
   #btn-enviar.cargando { opacity: .85; pointer-events: none; }
-
-  .spinner {
-    width: 16px; height: 16px; border: 2.5px solid rgba(255,255,255,.4); border-top-color: #fff;
-    border-radius: 50%; animation: girar .7s linear infinite; display: none;
-  }
+  .spinner { width: 16px; height: 16px; border: 2.5px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: girar .7s linear infinite; display: none; }
   #btn-enviar.cargando .spinner { display: inline-block; }
-
-  @keyframes girar { to { transform: rotate(360deg); } }
-  @keyframes destello { 0% { transform: scale(1); } 40% { transform: scale(1.04); } 100% { transform: scale(1); } }
-  @keyframes entrarTarjeta { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
-  @keyframes pulso { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
 
   .gasto-card {
     border: 1px solid var(--gris-borde); border-radius: 12px; padding: 12px 14px; margin-top: 10px;
-    animation: entrarTarjeta .32s cubic-bezier(.2,.8,.3,1) both; background: #fbfcfe; transition: box-shadow .2s, border-color .2s;
+    animation: entrarTarjeta .32s cubic-bezier(.2,.8,.3,1) both; background: #fbfcfe;
   }
-  .gasto-card:hover { box-shadow: 0 3px 10px rgba(15,40,80,.08); border-color: #c9d4e0; }
   .gasto-card-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
   .gasto-card-header strong { font-size: .92rem; }
   .gasto-card-body { font-size: .82rem; color: #5b6b7a; margin-top: 4px; }
   .gasto-card-body .monto { color: var(--azul); font-weight: 700; }
-  .btn-quitar {
-    background: none; color: var(--rojo); font-size: 1rem; padding: 4px 9px; border-radius: 8px;
-    line-height: 1; flex-shrink: 0;
-  }
+  .btn-quitar { background: none; color: var(--rojo); font-size: 1rem; padding: 4px 9px; border-radius: 8px; line-height: 1; flex-shrink: 0; }
   .btn-quitar:hover { background: #fdecea; }
 
-  #totales {
-    font-size: .95rem; color: #33404d; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--gris-borde);
-    display: flex; justify-content: space-between; align-items: baseline;
-  }
-  #total-gastado { font-size: 1.25rem; font-weight: 800; color: var(--azul); }
+  .lista-vacia { text-align: center; color: #8a97a3; font-size: .85rem; padding: 18px 8px; }
 
-  #estado-sync {
-    font-size: .84rem; margin-top: 12px; padding: 12px 14px; border-radius: 12px; min-height: 1em;
-    transition: background .25s, color .25s; display: none;
-  }
+  .resumen-fila { display: flex; justify-content: space-between; font-size: .9rem; padding: 5px 0; }
+  .resumen-fila .etiqueta { color: #5b6b7a; }
+  .resumen-fila .valor { font-weight: 600; }
+  .resumen-total { border-top: 1px dashed var(--gris-borde); margin-top: 8px; padding-top: 10px; font-size: 1rem; }
+  .resumen-total .valor { font-size: 1.2rem; font-weight: 800; }
+  .saldo-positivo { color: var(--verde); }
+  .saldo-negativo { color: var(--rojo); }
+
+  #estado-sync { font-size: .84rem; margin-top: 12px; padding: 12px 14px; border-radius: 12px; min-height: 1em; transition: background .25s, color .25s; display: none; }
   #estado-sync:not(:empty) { display: block; }
   #estado-sync.info { background: var(--azul-claro); color: var(--azul-osc); }
   #estado-sync.exito { background: var(--verde-claro); color: var(--verde); }
@@ -127,7 +136,6 @@
 
   .hint { font-size: .74rem; color: #8a97a3; margin-top: 4px; line-height: 1.35; }
 
-  /* ---- Modal de confirmación propio ---- */
   .modal-overlay {
     position: fixed; inset: 0; background: rgba(10,20,35,.5); display: flex; align-items: flex-end;
     justify-content: center; z-index: 50; opacity: 0; pointer-events: none; transition: opacity .2s ease;
@@ -144,7 +152,6 @@
   .modal-botones { display: flex; gap: 10px; }
   .modal-btn { flex: 1; padding: 13px; font-size: .95rem; border-radius: 12px; }
   .modal-btn-cancelar { background: #f0f2f5; color: #4a5a68; }
-  .modal-btn-cancelar:hover { background: #e4e8ed; }
   .modal-btn-confirmar { background: linear-gradient(135deg, var(--azul) 0%, var(--azul-osc) 100%); color: #fff; box-shadow: 0 5px 14px rgba(21,101,192,.32); }
 
   @media (max-width: 380px) { .row2 { grid-template-columns: 1fr; } }
@@ -153,20 +160,21 @@
 <body>
 <header>
   <h1>FYSEM RindeGastos</h1>
-  <p>Rinde gastos de forma rápida y sencilla. Completa la información de tu viaje una sola vez, registra los gastos cuando ocurran y envía tu rendición al finalizar. Funciona incluso sin conexión a internet.</p>
+  <p id="subtitulo-paso">Paso 1 de 3 · Datos del viaje</p>
   <div id="progreso">
-    <div class="paso" id="paso-viaje"><div class="paso-barra"></div><div class="paso-label">Viaje</div></div>
-    <div class="paso" id="paso-gastos"><div class="paso-barra"></div><div class="paso-label">Gastos</div></div>
-    <div class="paso" id="paso-enviar"><div class="paso-barra"></div><div class="paso-label">Enviar</div></div>
+    <div class="paso" id="paso-1" data-paso="1"><div class="paso-barra"></div><div class="paso-label">Viaje</div></div>
+    <div class="paso" id="paso-2" data-paso="2"><div class="paso-barra"></div><div class="paso-label">Gastos</div></div>
+    <div class="paso" id="paso-3" data-paso="3"><div class="paso-barra"></div><div class="paso-label">Enviar</div></div>
   </div>
 </header>
 
 <main>
-  <form id="form-viaje">
+  <!-- ===== PASO 1: Datos del viaje ===== -->
+  <div class="pantalla" id="pantalla-1">
     <section>
-      <h2><span class="num">1</span> Datos del viaje</h2>
+      <h2>Datos del viaje</h2>
       <label for="viaje-jefe">Jefe de grupo (responsable) *</label>
-      <input id="viaje-jefe" required>
+      <input id="viaje-jefe">
 
       <label for="viaje-orden">Orden de trabajo</label>
       <input id="viaje-orden">
@@ -175,7 +183,7 @@
       <input id="viaje-obra">
 
       <label for="viaje-destino">Ciudad / Destino *</label>
-      <input id="viaje-destino" required>
+      <input id="viaje-destino">
 
       <label for="viaje-centro-costo">Centro de costo (ERP) — confirmar con tesorería</label>
       <input id="viaje-centro-costo">
@@ -183,7 +191,7 @@
       <div class="row2">
         <div>
           <label for="viaje-fecha-salida">Fecha de salida *</label>
-          <input type="date" id="viaje-fecha-salida" required>
+          <input type="date" id="viaje-fecha-salida">
         </div>
         <div>
           <label for="viaje-fecha-retorno">Fecha de retorno prevista</label>
@@ -192,7 +200,7 @@
       </div>
 
       <label for="viaje-participantes">Participantes (nombres completos, separados por coma) *</label>
-      <input id="viaje-participantes" required>
+      <input id="viaje-participantes">
 
       <div class="row2">
         <div>
@@ -205,9 +213,28 @@
         </div>
       </div>
     </section>
+    <div class="nav-botones">
+      <button type="button" class="btn-continuar" id="btn-ir-paso-2" style="flex: 1;">Continuar →</button>
+    </div>
+  </div>
 
+  <!-- ===== PASO 2: Gastos (lista) ===== -->
+  <div class="pantalla" id="pantalla-2">
+    <button type="button" id="btn-agregar-gasto-grande">＋ Agregar gasto</button>
     <section>
-      <h2><span class="num">2</span> Agregar gasto</h2>
+      <h2>Registrados en este viaje</h2>
+      <div id="lista-gastos"></div>
+    </section>
+    <div class="nav-botones">
+      <button type="button" class="btn-atras" id="btn-volver-paso-1">← Viaje</button>
+      <button type="button" class="btn-continuar" id="btn-ir-paso-3">Revisar y enviar →</button>
+    </div>
+  </div>
+
+  <!-- ===== PASO 2b: Formulario de gasto ===== -->
+  <div class="pantalla" id="pantalla-gasto">
+    <section>
+      <h2>Nuevo gasto</h2>
       <label>Evidencia (foto del comprobante o Yape)</label>
       <div class="row2">
         <button type="button" id="btn-tomar-foto" class="btn-foto">📷 Tomar foto</button>
@@ -234,30 +261,45 @@
       <label for="gasto-tipo-doc">Tipo de documento (para ERP)</label>
       <select id="gasto-tipo-doc"></select>
 
-      <button type="button" id="btn-agregar-gasto">+ Agregar este gasto a la lista</button>
+      <button type="button" id="btn-guardar-gasto">Guardar gasto</button>
+      <button type="button" id="btn-cancelar-gasto">Cancelar</button>
     </section>
+  </div>
 
+  <!-- ===== PASO 3: Confirmar y enviar ===== -->
+  <div class="pantalla" id="pantalla-3">
     <section>
-      <h2><span class="num">3</span> Gastos agregados</h2>
-      <div id="lista-gastos"></div>
-      <div id="totales">Total gastado <span id="total-gastado">S/ 0.00</span></div>
+      <h2>Viaje</h2>
+      <div id="resumen-viaje"></div>
     </section>
-
-    <button id="btn-enviar" type="submit" disabled>
-      <span class="spinner"></span>
-      <span>Enviar rendición</span>
-    </button>
+    <section>
+      <h2>Cuadre</h2>
+      <div class="resumen-fila"><span class="etiqueta">Bolsa entregada</span><span class="valor" id="resumen-bolsa">S/ 0.00</span></div>
+      <div class="resumen-fila"><span class="etiqueta">Total gastado (<span id="resumen-num-gastos">0</span>)</span><span class="valor" id="resumen-gastado">S/ 0.00</span></div>
+      <div class="resumen-fila resumen-total"><span class="etiqueta">Saldo</span><span class="valor" id="resumen-saldo">S/ 0.00</span></div>
+    </section>
+    <section>
+      <h2>Gastos incluidos</h2>
+      <div id="resumen-gastos"></div>
+    </section>
+    <div class="nav-botones">
+      <button type="button" class="btn-atras" id="btn-volver-paso-2">←</button>
+      <button type="button" id="btn-enviar">
+        <span class="spinner"></span>
+        <span>Enviar rendición</span>
+      </button>
+    </div>
     <div id="estado-sync"></div>
-  </form>
+  </div>
 </main>
 
 <div class="modal-overlay" id="modal-overlay">
   <div class="modal-box">
-    <p class="modal-titulo">Confirmar gasto</p>
+    <p class="modal-titulo" id="modal-titulo">Confirmar</p>
     <p class="modal-mensaje" id="modal-mensaje"></p>
     <div class="modal-botones">
       <button type="button" class="modal-btn modal-btn-cancelar" id="modal-cancelar">Cancelar</button>
-      <button type="button" class="modal-btn modal-btn-confirmar" id="modal-confirmar">Sí, agregar</button>
+      <button type="button" class="modal-btn modal-btn-confirmar" id="modal-confirmar">Sí, confirmar</button>
     </div>
   </div>
 </div>
