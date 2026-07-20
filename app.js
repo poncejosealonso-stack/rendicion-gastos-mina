@@ -426,6 +426,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // -- Formulario de gasto --
   let archivoFotoSeleccionado = null;
   let gpsSeleccionado = null;
+  let gpsPromesa = null;
   let momentoCapturaSeleccionado = null;
 
   function limpiarFormularioGasto() {
@@ -441,6 +442,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.querySelectorAll('.btn-foto').forEach((b) => b.classList.remove('recien-elegida'));
     archivoFotoSeleccionado = null;
     gpsSeleccionado = null;
+    gpsPromesa = null;
     momentoCapturaSeleccionado = null;
   }
 
@@ -462,7 +464,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     archivoFotoSeleccionado = file;
     momentoCapturaSeleccionado = new Date().toISOString();
     gpsSeleccionado = null;
-    obtenerGPS().then((gps) => { gpsSeleccionado = gps; });
+    gpsPromesa = obtenerGPS().then((gps) => { gpsSeleccionado = gps; return gps; });
 
     document.querySelectorAll('.btn-foto').forEach((b) => b.classList.remove('recien-elegida'));
     if (btnOrigen) btnOrigen.classList.add('recien-elegida');
@@ -506,6 +508,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       `¿Añadir el gasto en "${concepto}" con un monto de S/ ${Number(monto).toFixed(2)}?`
     );
     if (!confirmado) return;
+
+    if (!gpsSeleccionado && gpsPromesa) {
+      setOcrStatus('📍 Obteniendo ubicación GPS...', 'leyendo');
+      await gpsPromesa;
+      setOcrStatus('', null);
+    }
 
     const foto_base64 = await comprimirFoto(archivoFotoSeleccionado);
     gastos.push({

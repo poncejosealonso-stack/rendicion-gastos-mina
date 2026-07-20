@@ -4,7 +4,7 @@
 
 const SSID = '1B0JhjDLTxUgi_YTSdoRRLxEKkW7sqVzV0sBDGQ7CXuM'; // misma hoja "Rendición de Gastos en Mina (Respuestas)"
 const CARPETA_FOTOS_NOMBRE = 'Rendicion Gastos Mina - Fotos (PWA)';
-const VISION_API_KEY = 'AIzaSyCopikqvUouh2uM7_kC8tk3PWjUMrNa-Lc';
+const VISION_API_KEY = 'AIzaSyBLEpdfu_vyII9hyo2ZBR_KscuZVT3GXKc';
 
 function doPost(e) {
   try {
