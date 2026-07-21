@@ -539,6 +539,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       ocr_ruc: ocr.ruc || '',
       ocr_num_documento: ocr.num_documento || '',
       ocr_comercio: ocr.comercio || '',
+      ocr_ciudad: ocr.ciudad || '',
     });
     renderGastos();
     autoguardarBorrador();
