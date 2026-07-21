@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gastos-mina-v5';
+const CACHE_NAME = 'gastos-mina-v6';
 const ASSETS = ['./', './index.html', './app.js', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', (e) => {

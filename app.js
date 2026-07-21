@@ -426,7 +426,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   // -- Formulario de gasto --
   let archivoFotoSeleccionado = null;
   let gpsSeleccionado = null;
+  let gpsPromesa = null;
   let momentoCapturaSeleccionado = null;
+  let ocrSeleccionado = null;
+
+  // mapea lo que detecta el OCR al desplegable "Tipo de documento"
+  const MAPA_TIPO_OCR = { boleta: 'bv', ticket: 'bv', factura: 'ft', yape_plin: 'yape_plin' };
 
   function limpiarFormularioGasto() {
     document.getElementById('gasto-concepto').value = '';
@@ -441,7 +446,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.querySelectorAll('.btn-foto').forEach((b) => b.classList.remove('recien-elegida'));
     archivoFotoSeleccionado = null;
     gpsSeleccionado = null;
+    gpsPromesa = null;
     momentoCapturaSeleccionado = null;
+    ocrSeleccionado = null;
   }
 
   document.getElementById('btn-agregar-gasto-grande').addEventListener('click', () => {
@@ -462,7 +469,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     archivoFotoSeleccionado = file;
     momentoCapturaSeleccionado = new Date().toISOString();
     gpsSeleccionado = null;
-    obtenerGPS().then((gps) => { gpsSeleccionado = gps; });
+    gpsPromesa = obtenerGPS().then((gps) => { gpsSeleccionado = gps; return gps; });
 
     document.querySelectorAll('.btn-foto').forEach((b) => b.classList.remove('recien-elegida'));
     if (btnOrigen) btnOrigen.classList.add('recien-elegida');
@@ -472,10 +479,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const foto_base64 = await comprimirFoto(file);
       const sugerencias = await intentarOCR(foto_base64);
+      ocrSeleccionado = sugerencias;
       if (sugerencias.fecha_gasto) document.getElementById('gasto-fecha').value = sugerencias.fecha_gasto;
       if (sugerencias.monto) document.getElementById('gasto-monto').value = sugerencias.monto;
+      const tipoSugerido = MAPA_TIPO_OCR[sugerencias.tipo_detectado];
+      const selTipo = document.getElementById('gasto-tipo-doc');
+      if (tipoSugerido && !selTipo.value) selTipo.value = tipoSugerido;
+      const inputConcepto = document.getElementById('gasto-concepto');
+      if (sugerencias.comercio && !inputConcepto.value.trim()) inputConcepto.value = sugerencias.comercio;
       if (sugerencias.fecha_gasto || sugerencias.monto) {
-        setOcrStatus('✅ Fecha/monto detectados automáticamente — verifica que estén correctos antes de guardar.', 'exito');
+        setOcrStatus('✅ Datos detectados automáticamente — verifica que estén correctos antes de guardar.', 'exito');
       } else {
         setOcrStatus('No se pudo leer el comprobante automáticamente, completa los campos a mano.', 'info');
       }
@@ -507,12 +520,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     );
     if (!confirmado) return;
 
+    if (!gpsSeleccionado && gpsPromesa) {
+      setOcrStatus('📍 Obteniendo ubicación GPS...', 'leyendo');
+      await gpsPromesa;
+      setOcrStatus('', null);
+    }
+
     const foto_base64 = await comprimirFoto(archivoFotoSeleccionado);
+    const ocr = ocrSeleccionado || {};
     gastos.push({
       fecha_gasto, concepto, categoria, monto, tipo_documento, foto_base64,
       gps_lat: gpsSeleccionado ? gpsSeleccionado.lat : '',
       gps_lng: gpsSeleccionado ? gpsSeleccionado.lng : '',
       momento_captura: momentoCapturaSeleccionado || '',
+      // lo que leyó el OCR en el comprobante — el backend lo usa para las alertas de auditoría
+      ocr_monto: ocr.monto || '',
+      ocr_fecha: ocr.fecha_gasto || '',
+      ocr_ruc: ocr.ruc || '',
+      ocr_num_documento: ocr.num_documento || '',
+      ocr_comercio: ocr.comercio || '',
     });
     renderGastos();
     autoguardarBorrador();
